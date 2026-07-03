@@ -17,11 +17,6 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
-//! Hardcoded values (not recommended for production)
-//! Highly recommended to move all Firecrawl API calls to the backend (e.g. Next.js API route)
-const FIRECRAWL_API_URL = "https://api.firecrawl.dev"; // Replace with your actual API URL whether it is local or using Firecrawl Cloud
-const FIRECRAWL_API_KEY = "fc-YOUR_API_KEY"; // Replace with your actual API key
-
 interface FormData {
   url: string;
   crawlSubPages: boolean;
@@ -76,6 +71,8 @@ interface ScrapeResult {
 }
 
 export default function FirecrawlComponent() {
+  const [apiUrl, setApiUrl] = useState<string>("https://api.firecrawl.dev");
+  const [apiKey, setApiKey] = useState<string>("");
   const [formData, setFormData] = useState<FormData>({
     url: "",
     crawlSubPages: false,
@@ -127,6 +124,10 @@ export default function FirecrawlComponent() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!apiUrl || !apiKey) {
+      alert("Please fill in both API URL and API Key");
+      return;
+    }
     setLoading(true);
     setIsCollapsibleOpen(false);
     setElapsedTime(0);
@@ -139,7 +140,7 @@ export default function FirecrawlComponent() {
     setShowCrawlStatus(false);
 
     try {
-      const endpoint = `${FIRECRAWL_API_URL}/v0/${
+      const endpoint = `${apiUrl}/v0/${
         formData.crawlSubPages ? "crawl" : "scrape"
       }`;
 
@@ -173,7 +174,7 @@ export default function FirecrawlComponent() {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
@@ -187,7 +188,7 @@ export default function FirecrawlComponent() {
       if (formData.crawlSubPages) {
         const jobId = data.jobId;
         if (jobId) {
-          const statusEndpoint = `${FIRECRAWL_API_URL}/v0/crawl/status/${jobId}`;
+          const statusEndpoint = `${apiUrl}/v0/crawl/status/${jobId}`;
           let statusData: {
             status: string;
             data?: { url: string }[];
@@ -197,7 +198,7 @@ export default function FirecrawlComponent() {
           do {
             const statusResponse = await fetch(statusEndpoint, {
               headers: {
-                Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+                Authorization: `Bearer ${apiKey}`,
               },
             });
             if (statusResponse.ok) {
@@ -213,7 +214,6 @@ export default function FirecrawlComponent() {
                 total: urls.length || null,
               });
               if (statusData.status !== "completed") {
-                // Wait for 1 second before polling again
                 await new Promise((resolve) => setTimeout(resolve, 1000));
                 console.log("Polling again...");
                 console.log(statusData);
@@ -270,10 +270,10 @@ export default function FirecrawlComponent() {
 
     for (const [index, url] of selectedUrls.entries()) {
       try {
-        const response = await fetch(`${FIRECRAWL_API_URL}/v0/scrape`, {
+        const response = await fetch(`${apiUrl}/v0/scrape`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -353,6 +353,42 @@ export default function FirecrawlComponent() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          <Collapsible className="mb-4 border rounded-md p-3">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between pl-2">
+                API Settings
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 mt-3 px-2">
+              <div>
+                <Label htmlFor="apiUrl" className="block text-left w-full pb-2">
+                  API URL
+                </Label>
+                <Input
+                  id="apiUrl"
+                  name="apiUrl"
+                  placeholder="https://api.firecrawl.dev"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="apiKey" className="block text-left w-full pb-2">
+                  API Key
+                </Label>
+                <Input
+                  id="apiKey"
+                  name="apiKey"
+                  type="password"
+                  placeholder="fc-YOUR_API_KEY"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
           <form onSubmit={handleSubmit}>
             <div className="flex items-center space-x-2">
               <Input
